@@ -1,0 +1,544 @@
+[[extend 'layout.html']]
+
+<style>
+[v-cloak] {
+     display: none;
+}
+
+html, body {
+  background-color: #f9f9f9;
+}
+</style>
+
+
+<div id="vue-target" v-cloak>
+  <nav class="navbar is-link" style="background-color: #2880D1;" role="navigation" aria-label="main navigation">
+    <div class="navbar-brand">
+      <a href="[[=URL('index')]]">
+        <img class="navbar-logo" src="Assets/RMSLogo3.png" width="225" rel="preload">
+      </a>
+
+      <a role="button" class="navbar-burger burger" aria-label="menu" aria-expanded="false" data-target="the-navbar-menu"
+          onclick="this.classList.toggle('is-active');document.getElementById(this.dataset.target).classList.toggle('is-active');">
+        <span aria-hidden="true"></span>
+        <span aria-hidden="true"></span>
+        <span aria-hidden="true"></span>
+      </a>
+    </div>
+
+    <div id="the-navbar-menu" class="navbar-menu">
+      <div class="navbar-start">
+        <a href="[[=URL('index')]]" class="navbar-item">
+          Home
+        </a>
+
+        <div class="navbar-item has-dropdown is-hoverable">
+          <a class="navbar-link">
+            Counties
+          </a>
+          <div class="navbar-dropdown">
+            <div v-for="county in counties">
+              <a role="button" class="navbar-item" @click="set_county_animation(county._idx)">
+                {{county.county_name}}
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="is_county == true" class="navbar-item has-dropdown is-hoverable is-link">
+          <a class="navbar-item is-link">
+            <!-- Implement the search feature ONLY IF "counties" is clicked...-->
+            <!-- ...this should allow counties[] and beaches[] to be populated before search bar appears-->
+            <div  class="control block has-icons-left">
+              <input class="input is-rounded" type="text" placeholder="Search for beaches" v-model="query" @keyup="search" />
+              <span class="icon is-small is-left">
+                <i class="fa fa-search"></i>
+              </span>
+            </div>
+          </a>
+          <div class="navbar-dropdown">
+            <div v-for="beach in county_beaches">
+              <!--still figuring out how to @click go to the selected beach-->
+              <a class="navbar-item" role="button" @click="set_beach(beach._idx); set_api(false); load_api(beach.beach_latitude,beach.beach_longitude);">
+                {{beach.beach_name}}
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="navbar-end">
+        <div class="navbar-item">
+          <div class="buttons">
+            [[if globals().get('user'):]]
+            <div class="navbar-item has-dropdown is-hoverable">
+              <a class="navbar-link is-primary">
+                [[=globals().get('user').get('email')]]
+              </a>
+              <div class="navbar-dropdown">
+                <a class="navbar-item" href="[[=URL('auth/logout')]]">Logout</a>
+                <a class="navbar-item" href="[[=URL('auth/profile')]]">Profile</a>
+                <a class="navbar-item" href="[[=URL('auth/change_password')]]">Change Password</a>
+              </div>
+            </div>
+            {{set_login_status()}}
+            [[else:]]
+            <a class="button is-link" href="[[=URL('auth/register')]]">Sign up</a>
+            <a class="button is-success is-rounded" href="[[=URL('auth/login')]]">Log in</a>
+            [[pass]]
+          </div>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+<!-- body of index page starts here-->
+  <section class="section">
+
+    <div class="columns is-mobile">
+      <!--Column one starts here-->
+
+      <div class="column is-one-fifth">
+        <transition name="bounce">
+          <img v-if="bounce" style="position:relative; bottom:50px; width:100%;" src="Assets/RMSLogo1.png" aspect-ratio="1" rel="preload">
+        </transition>
+        <div v-if="current_county === ''">
+          <transition name="fade">
+            <h1 v-if="fade" class="title">Please Select County</h1>
+          </transition>
+        </div>
+        <h1 v-else class="title">County:</h1>
+        <aside class="menu pr-6">
+          <ul class="menu-list">
+            <transition name="countyMenuAnimate">
+              <p v-if="countyMenuAnimate" class="menu-label">
+                {{current_county}}
+              </p>
+            </transition>
+            <div v-for="beach in county_beaches">
+              <li>
+                <transition name="countyMenuAnimate">
+                  <a role="button" @click="set_beach(beach._idx); set_api(false); load_api(beach.beach_latitude,beach.beach_longitude);" v-if="countyMenuAnimate">{{beach.beach_name}}</a>
+                </transition>
+              </li>
+            </div>
+          </ul>
+        </aside>
+      </div>
+
+      <!--Column two starts here-->
+
+      <div class="column">
+        <!-- if not viewing a beach, display image carousel and about info-->
+        <div v-if="!current_beach">
+          <div class="has-text-centered">
+            <figure class="image is-inline-block" style="width:85%;">
+              <div class="carousel-container">
+                <transition name="slide">
+                  <img v-show="slide" :src="carouselImages[imageIndex]" rel="prefetch">
+                </transition>
+                <transition name="slide">
+                  <img v-show="!slide" :src="carouselImages[imageNextIndex]" rel="prefetch">
+                </transition>
+              </div>
+            </figure>
+            <div class="content is-large">
+              <transition name="fade">
+                <h1 v-if="fade">About</h1>
+              </transition>
+
+              <transition name="fade">
+                <p v-if="fade">
+                  Rate My Surf is an online platform where surfers in Santa Cruz, Orange and Monterey Counties
+                  can discover beaches, leave reviews and view important weather and tide information.
+                </p>
+              </transition>
+              <transition name="fade">
+                <p v-if="fade">
+                  To begin, select a county from the drop down menu located on the navigation bar.
+                  Next, click one of the beaches which will appear on the left side of the page.
+                  This will bring you to one of the beach pages where you can write a review, like
+                  other people's reviews and view current weather and tide conditions.
+                </p>
+              </transition>
+              <transition name="fade">
+                <p v-if="fade">
+                  Happy Surfing!
+                </p>
+              </transition>
+            </div>
+          </div>
+        </div>
+
+        <!-- This is logic and container for review form -->
+        <div class="container mr-6" v-if="add_mode">
+          <div class="form">
+            <div class="field">
+              <label class="label">Title</label>
+              <div class="control">
+                <input type="text" v-model="review_title" class="input is-link" placeholder="e.g Best Day Ever!">
+              </div>
+            </div>
+            <div class="field">
+              <label class="label">Review</label>
+              <div class="control">
+                <textarea class="textarea is-link" v-model="review" cols="15" rows="5" placeholder="How was the beach?"></textarea>
+              </div>
+            </div>
+
+            <div class="field">
+              <div class="file is-info has-name">
+                <label class="file-label">
+                  <input type="file" class="file-input" name="image" accept=".jpg, .png, .jpeg, .gif" @change="upload_image($event)">
+                  <span class="file-cta">
+                    <span class="file-icon">
+                      <i class="fa fa-upload"></i>
+                    </span>
+                    <span class="file-label">
+                      Upload Image
+                    </span>
+                  </span>
+                  <div v-if="upload_done">
+                    <span class="file-name">
+                      <i class="fa fa-check-square"></i> &nbsp; {{selected_image}}
+                    </span>
+                  </div>
+                  <div v-else>
+                    <span class="file-name">
+                      No File Uploaded
+                    </span>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <div class="field">
+              <div class="control mb-5">
+                <input type="submit" class="button is-primary" value="Post" @click="add_review">
+                <input type="submit" class="button is-warning" value="Cancel" @click="set_add_status(false)">
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Else block of review form, just show the create review button -->
+
+        <div v-else>
+          <div class="block mb-4">
+            <div v-if="current_beach">
+              <div v-if="login_status">
+                <button @click="set_add_status(true)" class="button is-light">
+                  <i class="fa fa-plus fa-fw"></i>Create New Review
+                </button>
+              </div>
+              <div v-else>
+                <button @click="alert_sign_in()" class="button is-light">
+                  <i class="fa fa-plus fa-fw"></i>Create New Review
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Block to loop through reviews and display them -->
+
+        <!--  .slice().reverse() will display review from newest to old -->
+        <div v-for="review in beach_reviews.slice().reverse()">
+          <div class="box mb-5 mr-6">
+            <article class="media">
+              <figure class="media-left">
+                <div v-if="review.image">
+                  <p class="image is-96x96">
+                    <a><img :src="review.image" alt="Nothing here" @click="set_modal(true, 1, review._idx)"></a>
+                  </p>
+                  <div class="modal" :id="review._idx">
+                    <div class="modal-background" @click="set_modal(false, 1, review._idx)"></div>
+                    <div class="modal-content">
+                      <p class="image">
+                        <img :src="review.image">
+                      </p>
+                    </div>
+                    <button class="modal-close is-large"  @click="set_modal(false, 1, review._idx)" aria-label="close"></button>
+                  </div>
+                </div>
+                <div v-else>
+                  <p class="image is-96x96">
+                    <a><img src="Assets/RMSLogo1.png" @click="set_modal(true, 2, review._idx)"></a>
+                  </p>
+                  <div class="modal" :id="review._idx">
+                    <div class="modal-background" @click="set_modal(false, 2, review._idx)"></div>
+                    <div class="modal-content">
+                      <p class="image">
+                        <img src="Assets/RMSLogo1.png">
+                      </p>
+                    </div>
+                    <button class="modal-close is-large"  @click="set_modal(false, 2, review._idx)" aria-label="close"></button>
+                  </div>
+                </div>
+              </figure>
+              <div class="media-content">
+                <div class="content">
+                  <p>
+                    <div v-if="review._state === 'edit'">
+                      <nav class="level">
+                        <div class="level-left">
+                          <div class="level-item">
+                            <strong>@{{get_user_name(review.user)}} - </strong>
+                          </div>
+                          <div class="level-item">
+                            <input type="text" class="input is-link" v-model="review.review_title">
+                          </div>
+                        </div>
+                      </nav>
+                      <input type="text" class="input is-link" v-model="review.review">
+                    </div>
+                    <div v-else>
+                      <strong>@{{get_user_name(review.user)}} - {{review.review_title}}</strong>
+                      <br>
+                      {{review.review}}
+                    </div>
+                  </p>
+                </div>
+
+                <!-- This is where buttons to like, edit, delete posts is -->
+
+                <div v-if="login_status">
+                  <nav class="level is-mobile pt-4">
+                    <div class="level-left">
+                      <a class="level-item" @click="set_like(review._idx)">
+                        <div v-if="review.liked">
+                          <span class="icon is-small"><i class="fa fa-heart" aria-hidden="true"></i></span>
+                        </div>
+                        <div v-else>
+                          <span class="icon is-small"><i class="fa fa-heart-o" aria-hidden="true"></i></span>
+                        </div>
+                      </a>
+                      <span class="level-item">
+                        {{review.num_likes}}
+                      </span>
+                    </div>
+                    <div v-if="review.user == current_user">
+                      <div class="level-right">
+                        <a class="level-item" @click="">
+                          <span class="icon is-small" @click="edit(review._idx, review._state)"><i class="fa fa-pencil-square-o" aria-hidden="true"></i></span>
+                        </a>
+                        <a class="level-item" @click="delete_review(review._idx)">
+                          <span class="icon is-small"><i class="fa fa-trash-o" aria-hidden="true"></i></span>
+                        </a>
+                      </div>
+                    </div>
+                  </nav>
+                </div>
+                <div v-else>
+                  <nav class="level is-mobile">
+                    <div class="level-left">
+                      <a class="level-item" @click="alert_sign_in()">
+                        <div v-if="review.liked">
+                          <span class="icon is-small"><i class="fa fa-heart" aria-hidden="true"></i></span>
+                        </div>
+                        <div v-else>
+                          <span class="icon is-small"><i class="fa fa-heart-o" aria-hidden="true"></i></span>
+                        </div>
+                      </a>
+                      <span class="level-item">
+                        {{review.num_likes}}
+                      </span>
+                    </div>
+                  </nav>
+                </div>
+                <!-- End of like, edit delete block-->
+              </div>
+            </article>
+          </div>
+        </div>
+      </div>
+
+<!-- Column three starts here-->
+
+      <div class="column is-one-fifth">
+        <!-- once a beach is selected, fetch and display beach info from Storm Glass-->
+        <div v-if="current_beach">
+          <div class="card">
+            <header class="card-header">
+              <p class="card-header-title">
+                {{current_beach}}
+              </p>
+            </header>
+
+            <div class="card-content">
+              <aside class="menu">
+                <p class="menu-label">
+                  Current Conditions 
+                </p>
+                <div v-if="loaded_api">
+                    <ul class="menu-list">
+                        <li><a>Swell Height: {{get_api("swellHeight")}} ft</a></li>
+                        <li><a>Swell Direction: {{get_api("swellDirection")}}&deg;</a></li>
+                        <li><a>Swell Period: {{get_api("swellPeriod")}}s</a></li>
+                        <li><a>Tide: {{get_api("tide")}} ft</a></li>
+                        <li><a>Wind Direction: {{get_api("windDirection")}}&deg;</a></li>
+                        <li><a>Water Temperature: {{get_api("waterTemperature")}}&deg;C</a></li>
+                    </ul>
+                </div>
+                <div v-else>
+                    <progress class="progress is-small is-primary" max="100">15%</progress>
+                </div>
+              </aside>
+            </div>
+          </div>
+        </div>
+        <!--if no beach is selected, display contributors-->
+        <div v-else class="content is-medium" style="word-wrap:break-word;">
+          <h1>Contributors:</h1>
+          <ul>Connor Dawson</ul>
+          <ul>Marvin Gomez</ul>
+          <ul>Aaron Mandel</ul>
+          <ul>Joseph Mello</ul>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+[[block page_scripts]]
+
+<!--styling for the page-->
+<style>
+  .bounce-enter-active {
+   animation: bounce-in 1.0s;
+  }
+  .bounce-leave-active {
+    animation: bounce-in .5s reverse;
+  }
+  @keyframes bounce-in {
+    0% {
+      transform: scale(0);
+      width: 512px;
+    }
+    50% {
+      transform: scale(0);
+      width: 512px;
+    }
+    75% {
+      transform: scale(1.5);
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
+
+  .fade-enter-active {
+    animation: fade-in 2.0s;
+  }
+  @keyframes fade-in {
+    0% {
+      opacity: 0;
+    }
+    50% {
+      opacity: 0;
+    }
+    100% {
+      opacity: 1;
+    }
+  }
+
+  .carousel-container {
+    position: relative;
+    width:120%;
+    display:flex;
+    bottom: 50px;
+    right: 10%;
+    justify-content:center;
+    overflow:hidden;
+  }
+  .slide-enter-active {
+    animation: slide-in 1.5s;
+  }
+  .slide-leave-active {
+    animation: slide-out 1.5s;
+  }
+  @keyframes slide-in {
+    0% {
+      position:absolute;
+      top:0;
+      bottom:0;
+      left:0;
+      right:0;
+      transform: translate(100%);
+      opacity: 0.5;
+    }
+    66% {
+      position:absolute;
+      top:0;
+      bottom:0;
+      left:0;
+      right:0;
+      transform: translate(100%);
+      opacity: 0.5;
+    }
+    100% {
+      position:absolute;
+      top:0;
+      bottom:0;
+      left:0;
+      right:0;
+      transform: translate(0%);
+      opacity: 1;
+    }
+  }
+  @keyframes slide-out {
+    0% {
+      float:left;
+      transform: translate(0%);
+      opacity: 1;
+    }
+    66% {
+      transform: translate(0%);
+      opacity: 1;
+    }
+    100% {
+      transform: translate(-100%);
+      opacity: 0.5;
+    }
+  }
+
+  .countyMenuAnimate-enter-active {
+    animation: countyMenuAnimate-in .5s;
+  }
+  .countyMenuAnimate-leave-active {
+    animation: countyMenuAnimate-in .5s reverse;
+  }
+  @keyframes countyMenuAnimate-in {
+    0% {
+      transform: scale(0);
+      opacity: 0;
+    }
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  .navbar-logo {
+    position: relative;
+    border-top: 5px solid #2880D1;
+  }
+
+</style>
+<script>
+  let my_callback_url = "[[=XML(my_callback_url)]]";
+  let load_counties_url = "[[=XML(load_counties_url)]]";
+  let load_beaches_url = "[[=XML(load_beaches_url)]]";
+  let load_reviews_url = "[[=XML(load_reviews_url)]]";
+  let add_review_url = "[[=XML(add_review_url)]]";
+  let set_liked_url = "[[=XML(set_liked_url)]]";
+  let get_likes_url = "[[=XML(get_likes_url)]]";
+  let get_user_url = "[[=XML(get_user_url)]]";
+  let edit_contact_url = "[[=XML(edit_contact_url)]]";
+  let search_url = "[[=XML(search_url)]]";
+  let delete_review_url = "[[=XML(delete_review_url)]]";
+
+</script>
+<script src="js/index.js"></script>
+[[end]]
+
